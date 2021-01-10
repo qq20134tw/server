@@ -1,0 +1,44 @@
+.table_title1{
+  width:150px;
+  text-align:center;
+}
+
+.table_td1{
+  width:75px;
+  text-align:right;
+}
+.span_price{
+  display: inline-block;
+  width:100px;
+  font-weight:800;
+}
+.input_price{
+  width:100px;
+  text-align:right;
+}
+.stockDivHigh{
+  background-color : #FFB6C1;
+}
+.stockDivLow{
+  background-color : #98FB98;
+}
+.openYahooClass{
+  font-size : 30px;
+  color : #0000FF;
+  cursor : pointer;
+}
+.openYahooClass:hover{
+  color : #FF0000;
+}
+.redColor{
+  color : #FF0000;
+}
+.greenColor{
+  color : #339900;
+}
+.buyAmountClass,.sellAmountClass{
+  color : #0033CC
+}
+.stockDivClass+.stockDivClass{
+	margin-left : 5px;
+}

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>股票偵測</title>
+		<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js"></script>
+		<script async src="https://www.youtube.com/iframe_api"></script>
+		<link rel="stylesheet" type="text/css" href="/styles/stock.css" />
+		<link rel="shortcut icon" href="/images/favicon.ico" >
+	</head>
+	<body>
+		<div id="app-1">
+			<input
+				type="text"
+				placeholder="請輸入股票代號"
+				v-model="id"
+				ref="input_text"
+				list="stockList"
+				autofocus
+			>
+			<datalist id="stockList">
+				<option value="3406" label="玉晶光" />
+				<option value="6598" label="ABC-KY" />
+				<option value="3443" label="創意" />
+				<option value="3661" label="世芯-KY" />
+				<option value="3105" label="穩茂" />
+				<option value="6451" label="訊芯-KY" />
+				<option value="6533" label="晶心科" />
+				<option value="8046" label="南電" />
+			</datalist>
+			<input
+				type="button"
+				value="查詢"
+				@click="searchId"
+			>
+			<input
+				type="button"
+				value="展開清單"
+				@click="showStockList"
+			>
+			<input
+				type="button"
+				value="切換模式"
+				@click="changePattern"
+			>
+			<input 
+				type="button"
+				value="重整"
+				@click="reFresh"
+			>
+			<span style="color:#FF0000">
+				間隔10秒鐘刷新
+			</span>
+			<span style="color:#FF0000;float:right">
+				操作完畢點擊
+				<input 
+					type="button"
+					value="確認"
+					@click="checkStock"
+				>
+			</span>
+			
+			<br /><br />
+			<div id="div-1">
+			</div>
+		</div>
+		<br /><br /><br /><br /><br />
+		<div id="YouTubeVideoPlayerAPI" style="display:none"></div>
+		
+	</body>
+</html>
+
+
+<script type="text/JavaScript">
+
+	"use strict";
+	
+	let setTimeObj = {}
+	let youtubePlayer;
+	let oneFunctionObj = {
+		checkTime : 0
+	}
+	
+	let stockListArray = [];
+
+	
+	function onYouTubeIframeAPIReady() {
+	  
+	  youtubePlayer = new YT.Player('YouTubeVideoPlayerAPI', {
+		videoId: 'arw2dD-el3w',   // YouTube 影片ID
+		width: '500',            // 播放器寬度 (px)
+		height: '300',           // 播放器高度 (px)
+		playerVars: {
+		  autoplay: 1,            // 自動播放影片
+		  controls: 0,            // 顯示播放器
+		  showinfo: 0,            // 隱藏影片標題
+		  modestbranding: 0,      // 隱藏YouTube Logo
+		  loop: 1,                // 重覆播放
+		  playlist:'arw2dD-el3w', // 當使用影片要重覆播放時，需再輸入YouTube 影片ID
+		  fs: 0,                  // 隱藏全螢幕按鈕
+		  cc_load_policty: 0,     // 隱藏字幕
+		  iv_load_policy: 3,      // 隱藏影片註解
+		  autohide: 0             // 影片播放時，隱藏影片控制列
+		},
+		events: {
+		  onReady: function(e) {
+			//因為在載入畫面時滑鼠點擊或操作鍵盤有可能直接撥放
+			//所以乾脆直接撥放用音量控制
+			youtubePlayer.setVolume(0);
+			youtubePlayer.playVideo(); //強制播放(手機才會自動播放，但僅限於Android)
+		  }
+		}
+	  });
+	}
+	
+	function createDiv(id,createEnd){
+		
+		//用cors-anywhere取得API資料
+		/*
+		let cors = 'https://cors-anywhere.herokuapp.com/'; 
+		let url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_${id}.tw|otc_${id}.tw&json=1&delay=0`; 
+		$.getJSON(`${cors}${url}`, function(data){
+		*/	
+		//用node.js server取得API資料
+		let url = `http://127.0.0.1:8888/api/stock/${id}`; 
+		$.getJSON(`${url}`, function(data){
+			let msgArray = data.msgArray[0];
+			let queryTime = data.queryTime;
+
+			if (msgArray){
+			
+				//賣
+				let aArray = msgArray.a.split('_');
+				let fArray = msgArray.f.split('_');
+				//買
+				let bArray = msgArray.b.split('_');
+				let gArray = msgArray.g.split('_');
+
+				$('#div-1').append(
+					$('<div/>',{
+						'class' : 'stockDivClass',
+						'id' : `stockDiv${id}`,
+						'data-i' : id
+					}).html([
+						$('<hr/>'),
+						$('<span/>',{
+							'class' : 'openYahooClass'
+						}).html([
+							$('<span/>').html(
+								`${id}&nbsp&nbsp${msgArray.n}&nbsp&nbsp`
+							),
+							$('<span/>',{
+								'class' : 'queryTimeClass'
+							}).html(
+								queryTime.sysTime
+							),
+							$('<span/>').html(
+								'&nbsp&nbsp'
+							),
+						]),
+						$('<input>',{
+							'type' : 'button',
+							'value' : '刪除',
+							'data-i' : id,
+							'class' : 'removeDivClass'
+						}),
+						$('<br/>'),
+						$('<div/>',{
+							'class' : 'stockDetailDiv'
+						}).html([
+							$('<span/>').html(
+								'開盤：'
+							),
+							$('<span/>',{
+								'class' : 'openClass span_price'
+							}).html(
+								msgArray.o
+							),
+							$('<span/>').html(
+								'目標高點：'
+							),
+							$('<input>',{
+								'type' : 'text',
+								'value' : '',
+								'class' : 'targetHigh input_price'
+							}),
+							$('<br/>'),
+							$('<span/>').html(
+								'買價：'
+							),
+							$('<span/>',{
+								'class' : 'buyClass span_price'
+							}).html(
+								bArray[0]
+							),
+							$('<span/>').html(
+								'目標低點：'
+							),
+							$('<input>',{
+								'type' : 'text',
+								'class' : 'targetLow input_price'
+							}),
+							$('<br/>'),
+							$('<span/>').html(
+								'賣價：'
+							),
+							$('<span/>',{
+								'class' : 'sellClass span_price'
+							}).html(
+								aArray[0]
+							),
+							$('<span/>').html(
+								'最高：'
+							),
+							$('<span/>',{
+								'class' : 'highestClass span_price'
+							}).html(
+								msgArray.h
+							),
+							$('<br/>'),
+							$('<span/>').html(
+								'成交：'
+							),
+							$('<span/>',{
+								'class' : 'dealClass span_price'
+							}).html(
+								msgArray.z
+							),
+							$('<span/>').html(
+								'最低：'
+							),
+							$('<span/>',{
+								'class' : 'lowestClass span_price'
+							}).html(
+								msgArray.l
+							),
+							$('<br/>'),
+							$('<span/>').html(
+								'單量：'
+							),
+							$('<span/>',{
+								'class' : 'singleClass span_price'
+							}).html(
+								msgArray.tv
+							),
+							$('<br/>'),
+							$('<span/>').html(
+								'總量：'
+							),
+							$('<span/>',{
+								'class' : 'totalClass span_price'
+							}).html(
+								msgArray.v
+							)
+						]),
+						createDiv2(msgArray),
+						$('<iframe/>',{
+							'id' : `stockIframe${id}`,
+							'style' : 'width: 370px; height: 380px; border-width: 0;',
+							'src' : `https://s.yimg.com/nb/tw_stock_frontend/scripts/StxChart/StxChart.9d11dfe155.html?sid=${id}`,
+							'scrolling' : 'no'
+						})						
+					]).css({
+						'float' : 'left'
+					})
+				)
+				
+				if (vm.pattern == 'image'){
+					$('.stockDetailDiv,.stockEntrustTable').hide();
+				}
+				
+				
+				updateColor(id,msgArray);
+				
+			
+				if (typeof createEnd == 'function'){
+					createEnd()
+				}
+				
+				setIntervalUpdate(id);
+			} else {
+				$('#div-1').append(
+					$('<div/>',{
+						'class' : 'stockDivClass'
+					}).html([
+						$('<spam/>').html(`${id}查無該股號`),
+						$('<input>',{
+							type : 'button',
+							value : '刪除',
+							'data-i' : id,
+							class : 'removeDivClass'
+						}),
+						$('<br/>')
+					])
+				)
+			}
+			
+		});
+	}
+	
+	
+	function createDiv2(msgArray){
+		//賣
+		let aArray = msgArray.a.split('_');
+		let fArray = msgArray.f.split('_');
+		//買
+		let bArray = msgArray.b.split('_');
+		let gArray = msgArray.g.split('_');
+		
+		let table = $('<table/>',{
+			'border' : '1px',
+			'class' : 'stockEntrustTable'
+		}).html([
+			$('<tr/>').html([
+				$('<td/>',{
+					'colspan' : 2,
+					'class' : 'table_title1'
+				}).text(
+					'委買價/量'
+				),
+				$('<td/>',{
+					'colspan' : 2,
+					'class' : 'table_title1'
+				}).text(
+					'委賣價/量'
+				),
+			])
+		]);
+		
+		for (let i = 0; i < 5; i++){
+			table.append(
+				$('<tr/>').html([
+					$('<td/>',{
+						'class' : 'table_td1 buyPriceClass'
+					}).text(
+						bArray[i]
+					),
+					$('<td/>',{
+						'class' : 'table_td1 buyAmountClass',
+					}).text(
+						gArray[i]
+					),
+					$('<td/>',{
+						'class' : 'table_td1 sellPriceClass'
+					}).text(
+						aArray[i]
+					),
+					$('<td/>',{
+						'class' : 'table_td1 sellAmountClass'
+					}).text(
+						fArray[i]
+					)
+				])
+			)
+		}
+		
+		return table;
+	}
+	
+	function setIntervalUpdate(id){
+		setTimeObj[id] = setInterval(function(){
+			updateDiv(id);
+		},10000);
+	}
+	
+	function updateDiv(id){
+		
+		let stockDiv = $(`#stockDiv${id}`);
+		let stockIframe = $(`#stockIframe${id}`);
+		
+		stockDiv.find('.queryTimeClass').empty();
+		
+		//強制重載才需要，因為有自動重載所以就沒用這裡
+		<!-- stockIframe.attr('src',stockIframe.attr('src')); -->
+		
+		//用cors-anywhere取得API資料
+		/*
+		let cors = 'https://cors-anywhere.herokuapp.com/'; 
+		let url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_${id}.tw|otc_${id}.tw&json=1&delay=0`; 
+		$.getJSON(`${cors}${url}`, function(data){
+		*/	
+		//用node.js server取得API資料
+		let url = `http://127.0.0.1:8888/api/stock/${id}`; 
+		$.getJSON(`${url}`, function(data){
+			let msgArray = data.msgArray[0];
+			let queryTime = data.queryTime;
+			let sysTimeArray = queryTime.sysTime.split(':');
+			
+			if (oneFunctionObj.checkTime == 0){
+				if (Number(sysTimeArray[0]) >= 13 && Number(sysTimeArray[1]) >= 20 ){
+					oneFunctionObj.checkTime = 1;
+					youtubePlayer.setVolume(10);
+				}
+			}
+			
+			
+			//委賣陣列
+			let aArray = msgArray.a.split('_');
+			let fArray = msgArray.f.split('_');
+			//委買陣列
+			let bArray = msgArray.b.split('_');
+			let gArray = msgArray.g.split('_');
+			//最高委買
+			let buyPrice = Number(bArray[0]);
+			//最高委賣
+			let sellPrice = Number(aArray[0]);
+			//目標高點
+			let targetHigh = Number(stockDiv.find('.targetHigh').val());
+			//目標低點
+			let targetLow = Number(stockDiv.find('.targetLow').val());
+			
+			stockDiv.find('.queryTimeClass').text(queryTime.sysTime);
+			stockDiv.find('.buyClass').text(bArray[0]);
+			stockDiv.find('.sellClass').text(aArray[0]);
+			stockDiv.find('.highestClass').text(msgArray.h);
+			stockDiv.find('.dealClass').text(msgArray.z);
+			stockDiv.find('.lowestClass').text(msgArray.l);
+			stockDiv.find('.singleClass').text(msgArray.tv);
+			stockDiv.find('.totalClass').text(msgArray.v);
+			
+			for(let i =0;i<5;i++){
+				stockDiv.find('.buyPriceClass').eq(i).text(bArray[i]);
+				stockDiv.find('.buyAmountClass').eq(i).text(gArray[i]);
+				stockDiv.find('.sellPriceClass').eq(i).text(aArray[i]);
+				stockDiv.find('.sellAmountClass').eq(i).text(fArray[i]);
+			}
+			
+			if (targetHigh != 0){
+				if ( (buyPrice >= targetHigh && sellPrice >= targetHigh) || (msgArray.z >= targetHigh) ) {
+					youtubePlayer.setVolume(10);
+					stockDiv.addClass("stockDivHigh");
+				}
+			}
+			
+			if (targetLow != 0){
+				if ( (buyPrice <= targetLow && sellPrice <= targetLow) || (msgArray.z <= targetLow) ) {
+					youtubePlayer.setVolume(10);
+					stockDiv.addClass("stockDivLow");
+				}
+			}		
+			
+			updateColor(id,msgArray)
+		})
+	}
+	
+	function updateColor(id,msgArray) {
+	 
+	  let stockDiv = $(`#stockDiv${id}`);
+	  //賣
+      let aArray = msgArray.a.split('_');
+	  //買
+	  let bArray = msgArray.b.split('_');
+	  //昨收
+	  let y = msgArray.y;
+	  //開盤
+	  let o = msgArray.o;
+	  //買價
+	  let b = msgArray.b.split('_')[0];
+	  //賣價
+	  let a = msgArray.a.split('_')[0];
+	  //最高
+	  let h = msgArray.h;
+	  //最低
+	  let l = msgArray.l;
+	  //成交
+	  let z = msgArray.z;
+	  
+	  stockDiv.find('.span_price').removeClass('greenColor redColor');
+	  stockDiv.find('.buyPriceClass,.sellPriceClass').removeClass('greenColor redColor');
+	  
+	  function compareValue(object, number1, number2){
+	    if (number1 > 0) {
+		  if (number1 > number2) {
+		　　object.addClass('redColor');
+		　} else if (number1 < number2) {
+		　  object.addClass('greenColor');
+		　}
+		}
+	  }
+	  
+	  compareValue(stockDiv.find('.openClass'), o, y);
+	  compareValue(stockDiv.find('.buyClass'), b, y);
+	  compareValue(stockDiv.find('.sellClass'), a, y);
+	  compareValue(stockDiv.find('.dealClass'), z, y);
+	  compareValue(stockDiv.find('.highestClass'), h, y);
+	  compareValue(stockDiv.find('.lowestClass'), l, y);
+	  
+	  for (let i = 0; i < 5; i++){ 
+	    compareValue(stockDiv.find('.buyPriceClass').eq(i), bArray[i], y);
+	    compareValue(stockDiv.find('.sellPriceClass').eq(i), aArray[i], y);
+	  }
+	  
+	  
+	}
+	
+		
+	let vm = new Vue({
+		el : '#app-1',
+		data : {
+			id : '',
+			idArray : [],
+			pattern : 'full'
+		},
+		methods : {
+			searchId : function(){//查詢
+				let id = $.trim(this.id);
+				
+				if (id == '') return;
+				
+				let idArray = this.idArray;
+				
+				if (idArray.indexOf(String(id)) >= 0){
+					alert('已存在畫面中。');
+				} else {
+					idArray.push(id);
+					this.id = '';
+					this.$refs.input_text.focus();
+				
+					createDiv(id);
+				}
+				
+			},
+			reFresh : function(){//重整
+				let idArray = this.idArray;
+				if (idArray.length != 0){
+					
+					idArray.forEach(id => {
+						//重載
+						updateDiv(id);
+						//清除Interval
+						clearInterval(setTimeObj[id]);
+						///重設Interval
+						setIntervalUpdate(id)
+					})
+					
+				}
+			},
+			checkStock : function(){//確認
+				youtubePlayer.setVolume(0);
+				$('.stockDivClass').each(function(){
+				
+					if ($(this).hasClass('stockDivHigh')){
+						$(this).removeClass('stockDivHigh');
+						$(this).find('.targetHigh:eq(0)').val('');
+					}
+					
+					if ($(this).hasClass('stockDivLow')){
+						$(this).removeClass('stockDivLow');
+						$(this).find('.targetLow:eq(0)').val('');
+					}
+				});
+			},
+			showStockList : function(){
+				$('#stockList').find('option').each(function(){
+					if (vm.idArray.indexOf(String($(this).val())) < 0){
+						stockListArray.push($(this).val());
+					}
+				});
+				
+				vm.callStockList();
+			},
+			callStockList : function(){
+				if (stockListArray.length > 0){
+				
+					let id = stockListArray.shift();
+					vm.idArray.push(id);
+					
+					createDiv(id,function(){
+						vm.callStockList();
+					});
+				}
+			},
+			changePattern : function() {
+				let pattern = this.pattern;
+				
+				$('.stockDetailDiv,.stockEntrustTable').toggle();
+
+				if(pattern == 'full'){
+					this.pattern = 'image';
+					
+					
+					
+				} else {
+					this.pattern = 'full';
+				}
+			}
+		}
+	})
+		
+
+		
+	$('#app-1').on('click','.removeDivClass',function(){
+		let idArray = vm.idArray;
+		let id = $(this).data('i');
+		idArray.splice(idArray.indexOf(String(id)),1);
+
+		clearInterval(setTimeObj[id]);
+		
+		$(this).closest('.stockDivClass').remove();
+	}).on('click','.openYahooClass',function(){
+		
+		var id = $(this).closest('.stockDivClass').eq(0).data('i');
+		window.open(`https://tw.stock.yahoo.com/q/bc?s=${id}`,'_blank')
+	});
+
+
+</script>
+
